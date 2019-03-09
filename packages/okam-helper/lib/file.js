@@ -55,25 +55,84 @@ exports.relative = function (fullPath, rootDir) {
     return path.relative(rootDir, fullPath).replace(/\\/g, '/');
 };
 
-exports.getRequirePath = function (file, relativeFile) {
+exports.getRequirePath = function (file, relativeFile, keepExtnames) {
     let result = exports.relative(file, path.dirname(relativeFile));
-    result = result.replace(/\.js$/, '');
+
+    if (keepExtnames !== true) {
+        result = result.replace(/\.\w+$/, match => {
+            if (keepExtnames && keepExtnames.includes(match)) {
+                return match;
+            }
+            return '';
+        });
+    }
+
     if (/^\./.test(result)) {
         return result;
     }
     return './' + result;
 };
 
-
 /**
- * Get file name
+ * Get the full file path of the given relative file path.
  *
- * @param {string} filePath the file path
+ * @param {string} relativePath the relative file path
+ * @param {string} fullPath the full file path of the relative file path relative to
  * @return {string}
  */
-exports.getFileName = function (filePath) {
+exports.getFullPath = function (relativePath, fullPath) {
+    let result = path.resolve(path.dirname(fullPath), relativePath);
+    return result.replace(/\\/g, '/');
+};
+
+/**
+ * Get file name without extname info
+ *
+ * @param {string} filePath the file path
+ * @param {boolean=} withExtname wether return the extname info, optional,
+ *        by default false
+ * @return {string}
+ */
+exports.getFileName = function (filePath, withExtname = false) {
     let baseName = path.basename(filePath);
+    if (withExtname) {
+        return baseName;
+    }
+
     let lastDotIdx = baseName.lastIndexOf('.');
     return lastDotIdx === -1
         ? baseName : baseName.substring(0, lastDotIdx);
+};
+
+/**
+ * Replace file name of the given file path
+ *
+ * @param {string} filePath the file path to replace
+ * @param {string} newFileName the new file name including extname info
+ * @return {?string}
+ */
+exports.replaceFileName = function (filePath, newFileName) {
+    if (!newFileName) {
+        return;
+    }
+
+    let newPath = path.join(path.dirname(filePath), newFileName);
+    return newPath.replace(/\\/g, '/');
+};
+
+const EXTNAME_REGEXP = /\.\w+$/;
+
+/**
+ * Replace file path extname with the new extname
+ *
+ * @param {string} filePath the file path to replace extname
+ * @param {string} newExtname the new extname to replace
+ * @return {string}
+ */
+exports.replaceExtname = function (filePath, newExtname) {
+    if (newExtname.charAt(0) !== '.') {
+        newExtname = '.' + newExtname;
+    }
+
+    return filePath.replace(EXTNAME_REGEXP, newExtname);
 };

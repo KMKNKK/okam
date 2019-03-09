@@ -15,22 +15,32 @@ module.exports = merge({}, require('./base.config'), {
 
     <% if: ${async} %>
     localPolyfill: [
-        'async',
-        'promise'
+        'async'
     ],
     <% /if %>
 
-    dev: {
-        processors: {
-            postcss: {
-                options: {
-                    plugins: {
-                        'postcss-url': {
-                            url: 'inline'
-                        }
-                    }
-                }
+    processors: {
+        postcss: {
+            options: {
+                plugins: [
+                    ['postcss-url', {
+                        url: 'inline'
+                    }]
+                ]
+            }
+        },
+        <% if: ${script} === 'babel' %>
+        filter: {
+            options: {
+                presets: ['babel-preset-env']
             }
         }
+        <% else %>
+        filter: {
+            options: {
+                presets: ['@babel/preset-env']
+            }
+        }
+        <% /if %>
     }
 });

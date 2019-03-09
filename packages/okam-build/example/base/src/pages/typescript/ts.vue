@@ -49,6 +49,9 @@ export default {
 </script>
 
 <style lang="less">
+@import './dep.less';
+@import '../../common/css/font.less';
+
 .greeting {
     font-size: 20px;
     color: chocolate;

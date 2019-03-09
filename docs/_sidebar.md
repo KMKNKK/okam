@@ -1,6 +1,7 @@
 * 入门
 
     * [快速开始](intro/quickStart.md)
+    * [平台支持](intro/compare.md)
 
 * 小程序入口
 
@@ -26,6 +27,12 @@
 
     * [模板复用](template/use.md)
 
+    * [v- 指令支持](template/vueSyntax.md)
+
+    * [v-model 支持](template/v-model.md)
+
+    * [v-html 支持](template/v-html.md)
+
 * 组件
 
     * [开发模式](component/sfc.md)
@@ -40,9 +47,15 @@
 
     * [Mixins支持](component/mixins.md)
 
+    * [Filter支持](component/filter.md)
+
     * [Broadcast支持](component/broadcast.md)
 
-    * [原生自定义组件支持](component/native.md)
+    * [原生组件支持](component/nativeSupport.md)
+
+    * [组件互转](component/transform.md)
+
+    * [原生组件对齐](component/nativeComponent.md)
 
 * 进阶
 
@@ -56,14 +69,35 @@
 
     * [样式 rpx 单位转换](advance/rpx.md)
 
-    * [状态管理](advance/state.md)
+    * [Redux 状态管理](advance/redux.md)
 
-* 构建配置
+    * [Vuex 状态管理](advance/vuex.md)
+
+    * [特定平台代码](advance/platformSpecCode.md)
+
+* 自定义构建
 
     * [配置定义](build/index.md)
 
-    * [自定义插件](build/plugin.md)
+    * [标签转换](build/transformTag.md)
 
-* 插件列表
+    * [内置处理器](build/processors.md)
+
+    * [自定义处理器](build/plugin.md)
+
+    * [构建机制](build/implementation.md)
+
+* API
+
+    * [全局 API](api/global.md)
+
+    * [构建 API](api/build.md)
+
+* 处理器列表
 
     * [图片压缩](plugins/imgCompress.md)
+
+* 常见问题
+
+    * [问题解决](questions/index.md)
+    * [问题集锦](questions/problems.md)

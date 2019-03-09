@@ -22,7 +22,10 @@
                 <icon size="16" class="op-btn" type="clear" @click.stop="onRemoveTodo(item.id)"/>
             </view>
         </view>
+
         <view>
+            <view><text>counter: {{counter}}</text></view>
+            <button plain class="add-counter-btn" @click="onAddCounter">Add counter</button>
             <button @click="gotoCounter">Goto Counter</button>
         </view>
     </view>
@@ -42,6 +45,7 @@ export default {
     },
 
     data: {
+        obj: {},
         num: 3,
         count: 0,
         addNew: false,
@@ -75,6 +79,7 @@ export default {
     $store: {
         computed: {
             todos: 'todos',
+            counter: 'counter',
             otherNum(state) {
                 return state.todos.length + this.myNum + this.num;
             }
@@ -84,7 +89,11 @@ export default {
             {
                 'toggle': 'toggleTodo',
                 'removeTodo': 'removeTodo',
-                'addTodo': 'addTodo'
+                'addTodo': 'addTodo',
+                addCounter(value = 1) {
+                    console.log('add', value)
+                    return {type: 'INCREMENT', value};
+                }
             }
         ]
     },
@@ -95,9 +104,34 @@ export default {
         console.log(state);
     },
 
+    onShow() {
+        // this.$fireStoreChange();
+        this.oldTodos = this.$store.getState().todos;
+        this.oldTodos.kkk  = 33;
+        console.log('before', this.todos, this.oldTodos === this.todos);
+        this.$fireStoreChange();
+        console.log('after', this.todos, this.oldTodos === this.todos);
+
+        setTimeout(() => {
+            console.log('before', this.todos, this.oldTodos === this.todos);
+        }, 30);
+
+        let newObj = {a: 3};
+        this.setData({obj: newObj}, () => {
+            console.log('after done newObj', newObj, newObj === this.data.obj);
+        });
+        console.log('before done newObj', newObj, this.data.obj, newObj === this.data.obj);
+    },
+
     methods: {
         onToggleDone(id) {
+            this.oldTodos = this.$store.getState().todos;
+            console.log('before toggle done', this.todos, this.oldTodos === this.data.todos)
             this.toggle(id);
+            console.log('after toggle done', this.todos, this.oldTodos === this.data.todos)
+            setTimeout(() => {
+                console.log('after toggle success', this.todos, this.oldTodos === this.data.todos)
+            }, 300)
         },
 
         onAddTodo() {
@@ -126,6 +160,10 @@ export default {
             }
 
             this.addTodo(value);
+        },
+
+        onAddCounter() {
+            this.addCounter(23);
         },
 
         gotoCounter() {

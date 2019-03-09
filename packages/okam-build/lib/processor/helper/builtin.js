@@ -148,6 +148,10 @@ function resolveProcessor(processor) {
  */
 function initProcessorInfo(name, info, existedProcessors) {
     let processor = info.processor;
+    if (!processor) {
+        return info;
+    }
+
     if (typeof processor === 'string') {
         // if the processor refer to the existed processor, merge the existed
         // processor info with current processor
@@ -166,7 +170,7 @@ function initProcessorInfo(name, info, existedProcessors) {
             info = Object.assign({}, old, info);
             info.deps = merge(deps || [], oldDeps || []);
 
-            return Object.assign({}, old, info);
+            return Object.assign({refer: processor}, old, info);
         }
     }
 
@@ -179,6 +183,39 @@ function initProcessorInfo(name, info, existedProcessors) {
         throw new Error(msg);
     }
     return info;
+}
+
+/**
+ * Override the function value for the given object
+ *
+ * @param {?Object} curr the current object
+ * @param {?Object} old the old object
+ * @return {?Object}
+ */
+function overrideObjectFunctions(curr, old) {
+    if (!old) {
+        return curr;
+    }
+
+    if (!curr && curr !== undefined) {
+        return old;
+    }
+
+    let result = {};
+    Object.keys(curr).forEach(k => {
+        let v = curr[k];
+        let oldV = old[k];
+        if (typeof v === 'function' && typeof oldV === 'function') {
+            let currV = v;
+            v = function (...args) {
+                oldV.apply(this, args);
+                currV.apply(this, args);
+            };
+        }
+        result[k] = v;
+    });
+
+    return result;
 }
 
 /**
@@ -203,6 +240,10 @@ function overrideProcessor(existedProcessor, extnameProcessorMap, opts) {
             newExtnames = v;
         }
 
+        if (k === 'hook') {
+            v = overrideObjectFunctions(v, existedProcessor[k]);
+        }
+
         existedProcessor[k] = v;
     });
 
@@ -216,6 +257,39 @@ function overrideProcessor(existedProcessor, extnameProcessorMap, opts) {
         oldExtnames, processorName, extnameProcessorMap
     );
     addFileExtnameAssociatedProcessor(newExtnames, processorName, extnameProcessorMap);
+}
+
+/**
+ * Update existed processor processor info. If the processor has been defined,
+ * it'll skip the update.
+ *
+ * @param {Object} existedProcessors the existed processors info
+ * @param {string} processorName the processor name to update
+ * @param {string} referProcessorName the refer processor
+ */
+function updateReferProcessorInfo(existedProcessors, processorName, referProcessorName) {
+    let currProcessor = existedProcessors[processorName];
+    if (!currProcessor || currProcessor.processor) {
+        return;
+    }
+
+    let referProcessorInfo = existedProcessors[referProcessorName];
+    if (!referProcessorInfo) {
+        return;
+    }
+
+    let deps = referProcessorInfo.deps;
+    deps && !Array.isArray(deps) && (deps = [deps]);
+
+    let oldDeps = currProcessor.deps;
+    oldDeps && !Array.isArray(oldDeps) && (oldDeps = [oldDeps]);
+
+    let old = Object.assign({}, currProcessor);
+    Object.assign(currProcessor, referProcessorInfo, old, {
+        refer: referProcessorName,
+        deps: merge(deps || [], oldDeps || []),
+        processor: referProcessorInfo.processor
+    });
 }
 
 /**
@@ -262,5 +336,6 @@ function registerProcessor(existedProcessors, extnameProcessorMap, opts) {
 
 module.exports = exports = {
     getFileExtnameAssociatedProcessor,
-    registerProcessor
+    registerProcessor,
+    updateReferProcessorInfo
 };

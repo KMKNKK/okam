@@ -8,6 +8,7 @@
 /* eslint-disable fecs-min-vars-per-destructure */
 const path = require('path');
 const {colors, Timer} = require('../util');
+const {runBuildStartHook, runBuildDoneHook} = require('./build-hook');
 
 function getRelativePath(absPath) {
     let cwd = process.cwd();
@@ -35,13 +36,30 @@ function buildDone(timer, logger, outputDir) {
  */
 function buildProject(timer, buildConf, buildManager) {
     let {logger, output: outputOpts} = buildConf;
-    let result = buildManager.build(timer);
-    if (result !== true) {
-        return result;
+    let {onBuildStart, onBuildDone} = buildConf.script || {};
+
+    let hookResult = runBuildStartHook(buildManager, onBuildStart);
+    let buildResult;
+    if (hookResult instanceof Promise) {
+        buildResult = hookResult.then(code => {
+            logger.debug('init build start done...', code);
+            return buildManager.build(timer);
+        });
+    }
+    else {
+        buildResult = buildManager.build(timer);
     }
 
     let doneHandler = buildDone.bind(null, timer, logger, outputOpts.dir);
-    return buildManager.release().then(doneHandler).catch(doneHandler);
+    return buildResult.then(
+        () => buildManager.release()
+    ).then(
+        doneHandler
+    ).then(
+        () => {
+            runBuildDoneHook(buildManager, onBuildDone);
+        }
+    ).catch(doneHandler);
 }
 
 /**
@@ -75,15 +93,20 @@ function runBuild(buildConf, buildManager) {
     }
 
     // load build files
-    buildManager.loadFiles();
+    let result = buildManager.loadFiles();
+    if (!(result instanceof Promise)) {
+        result = Promise.resolve();
+    }
 
-    logger.info('load process files done, file count:',
-        colors.cyan(buildManager.getProcessFileCount()) + ', load time:',
-        colors.gray(timer.tick())
-    );
-    logger.info('build for', colors.cyan(buildManager.getBuildEnv()), 'env');
+    return result.then(() => {
+        logger.info('load process files done, file count:',
+            colors.cyan(buildManager.getProcessFileCount()) + ', load time:',
+            colors.gray(timer.tick())
+        );
+        logger.info('build for', colors.cyan(buildManager.getBuildEnv()), 'env');
 
-    return buildProject(timer, buildConf, buildManager);
+        return buildProject(timer, buildConf, buildManager);
+    });
 }
 
 module.exports = exports = runBuild;

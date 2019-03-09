@@ -1,7 +1,7 @@
 <template>
     <view class="hello-wrap">
         <text class="title">Hello Title: {{myName}} - {{myNum}}</text>
-        <view :class=' myClass '>Computed Prop:<text>{{myComputedNum}} - {{obj.toString()}}</text></view>
+        <view :class=' myClass '>Computed Prop:<text>{{myComputedNum}} - {{obj}}</text></view>
         <slot name="top"></slot>
         <slot></slot>
         <button class="btn" @click="handleClick">{{source}}-{{num}}</button>
@@ -117,7 +117,9 @@ export default {
 
         changeCounter() {
             console.log('child trigger change counter...')
-            this.$emit('counterChange', 333);
+            this.$emit('counterChange', {
+                value: 333
+            });
         }
     }
 }

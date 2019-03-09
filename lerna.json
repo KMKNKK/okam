@@ -1,11 +1,11 @@
 {
-  "lerna": "3.4.0",
+  "lerna": "3.5.1",
   "packages": [
     "packages/*"
   ],
   "command": {
     "publish": {
-      "allowBranch": ["master"],
+      "allowBranch": ["master", "0.3.x"],
       "message": "chore: publish"
     }
   },

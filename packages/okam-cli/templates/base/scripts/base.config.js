@@ -1,6 +1,8 @@
 /**
  * @file Build mini program base config
  * @author ${author|raw}
+ *
+ * @see https://ecomfe.github.io/okam/#/build/index
  */
 
 'use strict';
@@ -19,57 +21,39 @@ module.exports = {
     component: {
         extname: '${sfcExt}',
         template: {
-            <% if: ${h5tag} %>
+            // vue v- 前缀支持, 默认为 false
+            useVuePrefix: true,
+            // 标签转换配置项
             transformTags: {
-                // div p 等 将转为 view 标签
-                // span 标签转为 view 且加上 okam-inline class属性
-                // .okam-inline 在 入口样式中自行编写
-                view: [
-                    {
-                        tag: 'strong',
-                        class: 'okam-inline'
-                    },
-                    {
-                        tag: 'span',
-                        class: 'okam-inline'
-                    },
-                    'div', 'p',
-                    'ul', 'ol', 'li',
-                    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-                    'article', 'section', 'aside', 'nav', 'header', 'footer',
-                    'pre', 'code'
-                ],
-                // a 将标签转为 navigator 标签，href 属性 转为 url 属性
-                navigator: {
-                    tag: 'a',
-                    href: 'url'
-                },
-                // img 将转为 image 标签
-                image: 'img'
             }
-            <% /if %>
         }
     },
+    // 此处没用上的功能可自行精简
     framework: [
         'data',
+        // watch 依赖 data
         'watch',
-        'broadcast',
-        'ref',
+        // 快应用 不支持 model
+        'model',
+        // 头条 不支持 filter
+        'filter',
         <% if: ${redux} %>
-        'redux'
+        // redux 依赖 data
+        'redux',
         <% /if %>
+        'behavior',
+        'broadcast',
+        'ref'
     ],
+    // 快应用 不转 rpx
+    designWidth: 1242,
     processors: {
-        <% if: ${script} === 'typescript' %>
-        babel7: {
-            extnames: ['js', 'ts']
-        },
-        <% elif: ${script} === 'babel7' %>
-        babel7: {
+        <% if: ${script} === 'babel' %>
+        babel: {
             extnames: ['js']
         },
         <% else %>
-        babel: {
+        babel7: {
             extnames: ['js']
         },
         <% /if %>
@@ -96,31 +80,40 @@ module.exports = {
             extnames: ['${styleExt}'],
             options: {
                 <% if: ${px2rpx} %>
-                plugins: {
-                    px2rpx: {
-                        // 设计稿尺寸
-                        designWidth: 1242
-                    }
-                }
+                plugins: [
+                    'env',
+                    [
+                        'px2rpx',
+                        {
+                            // 设计稿尺寸,
+                            // 此配置项优先级高于 外层的 `designWidth`
+                            // 相同时 内部配置项可以不配置
+                            // designWidth: 1242,
+                            // 开启 1px 不转
+                            noTrans1px: true
+                        }
+                    ]
+                ]
                 <% /if %>
             }
         }
     },
 
-    <% if: ${server} %>
     // 启用开发 Server
     server: {
         port: DEV_SERVER_PORT,
         type: 'connect',
         // 需要安装 mock 中间件 npm i autoresponse --save-dev
         middlewares: [
-            // name: 'autoresponse',
-            // options: {
-
-            //}
+            // {
+            //     name: 'autoresponse',
+            //     options: {
+            //         post: true,
+            //         get: true
+            //     }
+            // }
         ]
     },
-    <% /if %>
 
     prod: {
         rules: [
@@ -149,9 +142,7 @@ module.exports = {
                 match: '*.js',
                 processors: [
                     ['replacement', {
-                        <% if: ${server} %>
                         // 'https://online.com': 'https://dev.com',
-                        <% /if %>
                         'process.env.NODE_ENV': '"development"'
                     }]
                 ]
@@ -164,9 +155,7 @@ module.exports = {
                 match: '*.js',
                 processors: [
                     ['replacement', {
-                        <% if: ${server} %>
                         // 'https://online.com': 'https://test.com',
-                        <% /if %>
                         'process.env.NODE_ENV': '"development"'
                     }]
                 ]

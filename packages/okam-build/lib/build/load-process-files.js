@@ -7,6 +7,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const glob = require('glob');
 const MM = require('minimatch').Minimatch;
 const {getFileState, relative} = require('../util').file;
 const FileFactory = require('../processor/FileFactory');
@@ -51,23 +52,80 @@ function addFileRule(allRules, rule) {
     }
 }
 
-function isMatchFile(file, pattern) {
-    if (file === pattern) {
-        return true;
-    }
-
-    if (pattern instanceof RegExp) {
-        return pattern.test(file);
-    }
-
-    return false;
-}
-
 function resolvePath(file, rootDir) {
     if (typeof file === 'string') {
         return relative(path.resolve(rootDir, file), rootDir);
     }
     return file;
+}
+
+function filterFiles(ctx, file, isDir, fullPath) {
+    let {
+        sourceDir,
+        sourcePathPrefix,
+        excludeRules,
+        customIncludeRules,
+        fileFactory,
+        initBuildFiles
+    } = ctx;
+
+    if (isDir && file === sourceDir) {
+        return false;
+    }
+
+    let isFilter = excludeRules && excludeRules.some(item => item.match(file));
+    if (isFilter) {
+        return true;
+    }
+
+    let isCustomInclude = customIncludeRules.some(item => item.match(file));
+    if (!isCustomInclude && file.indexOf(sourcePathPrefix) !== 0) {
+        return true;
+    }
+
+    if (isDir) {
+        return false;
+    }
+
+    let toProcessFile = fileFactory.createFile({
+        path: file,
+        fullPath
+    });
+
+    // ensure the entry app script can be compiled at first
+    if (toProcessFile.isEntryScript
+        || toProcessFile.isEntryStyle
+        || toProcessFile.isProjectConfig
+    ) {
+        initBuildFiles.unshift(toProcessFile);
+    }
+    else if (toProcessFile.isImg || isCustomInclude) {
+        // by default all image files will be processed and output as for
+        // we cannot analysis the used image resources correctly
+        // add custom included files as default init process files
+        initBuildFiles.push(toProcessFile);
+    }
+
+    fileFactory.push(toProcessFile);
+}
+
+function addExtraIncludeFiles(includeGlob, initBuildFiles, fileFactory) {
+    if (!Array.isArray(includeGlob)) {
+        return;
+    }
+
+    let {root} = fileFactory;
+    includeGlob.forEach(pattern => {
+        glob.sync(pattern, {
+            cwd: root
+        }).forEach(item => {
+            item = path.join(root, item);
+            let file = fileFactory.addFile(item);
+            if (!initBuildFiles.includes(file)) {
+                initBuildFiles.push(file);
+            }
+        });
+    });
 }
 
 function loadProcessFiles(options, logger) {
@@ -78,7 +136,7 @@ function loadProcessFiles(options, logger) {
         return;
     }
 
-    let initBuildFiles = [];
+    const initBuildFiles = [];
     let componentExtname = options.component.extname;
     let {style: entryStyle, script: entryScript, projectConfig} = options.entry;
     entryStyle = resolvePath(entryStyle, rootDir);
@@ -90,68 +148,43 @@ function loadProcessFiles(options, logger) {
     exclude && exclude.forEach(addFileRule.bind(this, excludeRules));
     excludeRules.length || (excludeRules = null);
 
-    let includeRules = [];
-    addFileRule(includeRules, new RegExp(`^${sourceDir}/`));
-    include && include.forEach(addFileRule.bind(this, includeRules));
-
-    let processFiles = new FileFactory({
-        root: rootDir,
-        rebaseDepDir: (options.output || {}).depDir
+    let customIncludeRules = [];
+    let includeGlob = [];
+    include && include.forEach(item => {
+        if (typeof item === 'string') {
+            includeGlob.push(item);
+        }
+        else {
+            addFileRule(customIncludeRules, item);
+        }
     });
-    let filterFiles = function (file, isDir, fullPath) {
-        if (isDir && file === sourceDir) {
-            return false;
-        }
 
-        let isFilter = excludeRules && excludeRules.some(item => item.match(file));
-        if (isFilter) {
-            return true;
-        }
+    let fileFactory = new FileFactory({
+        root: rootDir,
+        rebaseDepDir: (options.output || {}).depDir,
+        entryStyle,
+        entryScript,
+        projectConfig,
+        componentExtname
+    });
 
-        isFilter = !includeRules.some(item => item.match(file));
-        if (isFilter) {
-            return true;
-        }
-
-        if (isDir) {
-            return false;
-        }
-
-        let toProcessFile = processFiles.createFile({
-            path: file,
-            fullPath
-        });
-        Object.assign(toProcessFile, {
-            isEntryScript: isMatchFile(file, entryScript),
-            isEntryStyle: isMatchFile(file, entryStyle),
-            isProjectConfig: isMatchFile(file, projectConfig),
-            isComponent: toProcessFile.extname === componentExtname
-        });
-
-        // ensure the entry app script can be compiled at first
-        if (toProcessFile.isEntryScript
-            || toProcessFile.isEntryStyle
-            || toProcessFile.isProjectConfig
-        ) {
-            initBuildFiles.unshift(toProcessFile);
-        }
-        else if (!toProcessFile.isScript
-            && !toProcessFile.isStyle
-            && !toProcessFile.isJson
-        ) {
-            initBuildFiles.push(toProcessFile);
-        }
-
-        processFiles.push(toProcessFile);
-    };
-
+    let onFilter = filterFiles.bind(null, {
+        sourceDir,
+        sourcePathPrefix: `${sourceDir}/`,
+        excludeRules,
+        customIncludeRules,
+        fileFactory,
+        initBuildFiles
+    });
     logger.debug('load files', rootDir, sourceDir);
-    traverseFiles(rootDir, filterFiles);
+    traverseFiles(rootDir, onFilter);
+
+    addExtraIncludeFiles(includeGlob, initBuildFiles, fileFactory);
 
     return {
         root: rootDir,
         sourceDir,
-        files: processFiles,
+        files: fileFactory,
         buildFiles: initBuildFiles
     };
 }

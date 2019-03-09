@@ -5,7 +5,7 @@
 
 'use strict';
 
-import {env, getCurrApp} from '../na/index';
+import {getCurrApp} from '../na/index';
 import EventListener from '../util/EventListener';
 import base from './base';
 
@@ -17,9 +17,23 @@ export default {
      * @private
      */
     created() {
-        // cannot call setData
-        Object.assign(this, base);
-        this.$app = getCurrApp();
+        // cannot call setData，cannot set `$app` enumerable true,
+        // it'll lead to error in toutiao mini program
+        let propDescriptors = {
+            $app: {
+                get() {
+                    return getCurrApp();
+                }
+            }
+        };
+        Object.keys(base).forEach(k => {
+            propDescriptors[k] = {
+                get() {
+                    return base[k];
+                }
+            };
+        });
+        Object.defineProperties(this, propDescriptors);
 
         this.$listener = new EventListener();
 
@@ -35,8 +49,6 @@ export default {
     attached() {
         // call beforeMount hook
         this.beforeMount && this.beforeMount();
-
-        this.$selector = env.createSelectorQuery();
     },
 
     /**
@@ -59,7 +71,6 @@ export default {
         this.beforeDestroy && this.beforeDestroy();
 
         this.$listener.off();
-        this.$selector = null;
         this.$isDestroyed = true; // add destroyed flag
 
         // call destroyed hook
@@ -124,31 +135,45 @@ export default {
          * @param {Object} event the event object
          */
         __handlerProxy(event) {
+            this.__beforeEventProxy && (event = this.__beforeEventProxy(event));
+
+            // fix: wx canvas events dont have event.currentTarget
+            if (!event.currentTarget) {
+                event.currentTarget = event.target;
+            }
+
             // get event dataSet
             const data = event.currentTarget.dataset;
             const eventType = event.type;
 
-            if ((event.target.id !== event.currentTarget.id) && data[`${eventType}ModifierSelf`]) {
+            if ((event.target.id !== event.currentTarget.id) && data[`${eventType}Self`]) {
                 return;
             }
 
-            const realHandler = data[`${eventType}EventProxy`];
+            const realHandler = data[`${eventType}Proxy`];
 
             // get arguments in dataSet when there is real handler
             if (eventType && realHandler) {
-                let args = data[`${eventType}ArgumentsProxy`] || [event];
+                let args = data[`${eventType}Args`] || [event];
 
                 // passing on the event object when there is '$event' identifier
-                const eventObjectAlias = data[`${eventType}EventObjectAlias`];
+                const eventObjectAlias = data[`${eventType}Event`];
                 if (eventObjectAlias) {
                     args = args.map(
                         item => (item === eventObjectAlias ? event : item)
                     );
                 }
 
+                // fix ant mini program event dataset diff
+                if (event.target.targetDataset) {
+                    event.target.dataset = event.target.targetDataset;
+                }
+
                 // trigger real handle methods
                 this[realHandler].apply(this, args);
             }
+
+            this.__handlerModelProxy && this.__handlerModelProxy(event);
         }
     }
 };

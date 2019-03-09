@@ -73,7 +73,13 @@ Thumbs.db
 # build assets
 /output
 /dist
+/wx_dist
+/ant_dist
+/quick_dist
+/tt_dist
 /dll
 packages/okam-build/example/dist
-
+packages/okam-component/example/quick/build
+packages/okam-component/example/quick/dist
+packages/okam-component/example/quick/package-lock.json
 

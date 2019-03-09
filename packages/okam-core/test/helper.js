@@ -7,12 +7,25 @@
 
 import assert from 'assert';
 import expect, {spyOn} from 'expect';
-import CoreComponent from 'core/Component';
+import CoreComponent from 'core/swan/Component';
 import AntCoreComponent from 'core/ant/Component';
+import WxCoreComponent from 'core/wx/Component';
 import * as na from 'core/na/index';
+import * as swanEnv from 'core/swan/env';
+import * as wxEnv from 'core/wx/env';
+import * as ttEnv from 'core/tt/env';
+import * as antEnv from 'core/ant/env';
+import * as quickEnv from 'core/quick/env';
 import base from 'core/base/base';
 
 const PATH_PREFIX_REGEX = /^\w+\./;
+const appEnvMap = {
+    swan: swanEnv,
+    wx: wxEnv,
+    tt: ttEnv,
+    ant: antEnv,
+    quick: quickEnv
+};
 
 function getPropertyValue(obj, path) {
     let parts = path.split('.');
@@ -125,42 +138,40 @@ export function fakeAntComponent() {
     };
 }
 
-export function fakeAppEnvAPIs(appType) {
-    const rawEnv = na.env;
-    const rawGetCurrApp = na.getCurrApp;
-    const rawApi = base.$api;
-    const rawApp = global[appType];
-
-    global[appType] = {
-        getSystemInfo() {},
-        request() {},
-        createSelectorQuery() {
-            return {
-                select(path) {
-                    return path;
-                },
-                selectAll(path) {
-                    return [path];
-                }
-            };
-        }
-    };
-
-    global.Page = function (instance) {
+export function fakeWxComponent() {
+    return function (...args) {
+        /* eslint-disable babel/new-cap */
+        let instance = WxCoreComponent(...args);
+        Object.assign(instance, instance.methods);
         return instance;
     };
+}
 
-    na.getCurrApp = function () {
-        return {};
-    };
-    na.env = global[appType];
-    base.$api = Object.create(global[appType]);
+export function fakeAppEnvAPIs(appType) {
+    const rawApi = base.$api;
+
+    let appEnv = appEnvMap[appType];
+    na.setExportInfo(appEnv);
+
+    base.$api = appEnv.api;
 
     return () => {
-        global[appType] = rawApp;
-        global.Page = undefined;
-        na.getCurrApp = rawGetCurrApp;
         base.$api = rawApi;
-        na.env = rawEnv;
     };
+}
+
+export function executeSequentially(taskList, initDelay) {
+    let result = Promise.resolve();
+    taskList.forEach(task => {
+        let delay = task.delay || 0;
+        result = result.then(() => {
+            return new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    task();
+                    resolve();
+                }, delay);
+            });
+        });
+    });
+    return result.catch(ex => console.error(ex));
 }

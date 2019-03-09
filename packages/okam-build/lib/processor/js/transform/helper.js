@@ -53,6 +53,9 @@ function getPlainObjectNodeValue(node, path, t) {
             result.push(getPlainObjectNodeValue(item, path, t));
         });
     }
+    else if (t.isNullLiteral(node)) {
+        result = null;
+    }
     else if (t.isLiteral(node)) {
         result = node.value;
     }
@@ -121,6 +124,10 @@ exports.createImportDeclaration = function (varName, requireId, t) {
  * @return {?Object}
  */
 function createNode(value, t) {
+    if (t.isIdentifier(value)) {
+        return value;
+    }
+
     if (Array.isArray(value)) {
         let elements = [];
         value.forEach(item => {
@@ -254,4 +261,19 @@ exports.getPlainObjectNodeValue = getPlainObjectNodeValue;
  */
 exports.isVariableDefined = function (path, varName) {
     return path.scope.hasBinding(varName);
+};
+
+/**
+ * Generate code
+ *
+ * @param {Object} ast the code ast to generate
+ * @param {Object} options the generation options
+ * @param {boolean=} usingBabel6 whether using babel 6
+ * @return {string}
+ */
+exports.generateCode = function (ast, options, usingBabel6) {
+    let generate = usingBabel6
+        ? require('babel-generator').default
+        : require('@babel/generator').default;
+    return generate(ast, options);
 };

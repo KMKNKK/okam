@@ -22,13 +22,22 @@ module.exports = {
     root: process.cwd(),
 
     /**
+     * 设计稿尺寸
+     *
+     * @type {number}
+     */
+    designWidth: 750,
+
+    /**
      * 扩展的原生小程序的框架，目前只支持 `okam-core` 提供的扩展：
      * data: 支持 vue 数据操作方式及computed
      * broadcast: 支持广播事件
      * ref 扩展：允许模板指定 ref 属性，组件实例 $refs 获取引用类似 Vue
      * watch: 支持 watch 配置 和 $watch API，依赖 data 扩展需要一起配置
      * redux: 支持 redux 状态管理库，依赖 data 扩展需要一起配置
+     * vuex: 支持 vuex 状态管理库，依赖 data 扩展需要一起配置
      * behavior: 支持组件包括 page 的 mixin 支持
+     * filter: 支持 Vue filter 语法，filter 定义通过组件 filters 属性定义
      * 可选。e.g., ['data', 'broadcast', 'ref']
      * 对于插件支持选项，可以传入数组形式：
      * [ ['behavior', '{useNativeBehavior: true}'] ]
@@ -37,6 +46,21 @@ module.exports = {
      * @type {Array.<string|Array.<string>>}
      */
     framework: null,
+
+    /**
+     * 要注册的 API，可选，会挂载到组件、页面、App 实例上下文 `this.$api`
+     * 结构：
+     * {
+     *    'audio': '@system.audio', // 导入外部依赖
+     *    'myRequest': './common/request', // 相对模块，相对于项目源目录
+     * }
+     *
+     * key: 为对应要导出的 api 名称，value 为对应的该 API 的实现
+     * 导入后，可以 `this.$api.audio` 访问到对应的注册的 API
+     *
+     * @type {Object}
+     */
+    api: null,
 
     /**
      * 要增加的语法 API polyfill，可选，目前框架默认支持两种:
@@ -54,6 +78,51 @@ module.exports = {
      * @type {Array}
      */
     localPolyfill: null,
+
+    /**
+     * 模块路径 resolve 选项，可选
+     * {
+     *     extensions: ['xx'], // 查找的模块文件后缀名，会跟默认查找的后缀名做合并
+     *     alias: {'common/': 'src/common/'}, // 模块别名设置，同 webpack#resolve.alias
+     *     modules: ['node_modules', 'dep'], // 模块查找目录，如果传入绝对路径不会递归查找
+     *     // 要忽略 resolve 的模块 id，可以传入正则，或者字符串数组，也可以是一个 function
+     *     // 返回 true 表示要忽略，返回 false 表示不忽略。
+     *     ignore: /^@system/ | ['@system/xx', /^@xxx/] | (moduleId, appType) => return true;
+     *     onResolve(depModId, file) {} // resolve dep 时候事件监听回调
+     * }
+     *
+     * @type {Object}
+     */
+    resolve: {
+        alias: {
+            'okam$': 'okam-core/src/index'
+        }
+    },
+
+    /**
+     * 执行的脚本命令，目前提供了两个钩子来执行命令： `onBuildStart` `onBuildDone`
+     *
+     * {
+     *     onBuildStart: 'npm run init', // 构建开始要执行的命令
+     *     onBuildStart: { // 也可以是对象形式
+     *        cmd: 'node',
+     *        args: ['init.js'], // 如果提供了 args， cmd 必须是命令名称
+     *        options: {cwd: __dirname}
+     *     },
+     *     onBuildStart(opts) { // 可以是 function 形式，返回特定的要执行的脚本命令，
+     *                         // 如果多个，返回数组
+     *          return [
+     *                {
+     *                   cmd: opts.watch ? 'npm run watch' : 'npm run build',
+     *                   options: {cwd: __dirname}
+     *                }
+     *          ];
+     *     }
+     * }
+     *
+     * @type {?Object}
+     */
+    script: null,
 
     /**
      * 项目源代码位置信息
@@ -77,7 +146,8 @@ module.exports = {
         exclude: [],
 
         /**
-         * 要 include 的文件
+         * 要 include 的文件，支持 glob pattern，相对于 root，如果是正则，只支持
+         * root 下文件 或者 source 下文件 的 match
          *
          * @type {Array.<string|RegExp>}
          */
@@ -129,6 +199,12 @@ module.exports = {
 
         /**
          * 输出的 NPM 依赖文件存放的目录
+         * 也支持设置成对象形式：
+         * {
+         *    node_modules: 'src/dep', // 依赖文件路径前缀为 node_modules/ 挪到 src/dep 下
+         *    bower_components: 'src/dep' // 依赖文件路径前缀为 bower_components/ 挪到 src/dep 下
+         * }
+         * 如果设置为字符串，默认为将依赖文件路径前缀为 node_modules/ 挪到 src/dep 下
          *
          * @type {string}
          */
@@ -147,8 +223,24 @@ module.exports = {
                 return false;
             }
 
+            // do not output not processed file and sfc file component
+            if (!file.allowRelease || file.isComponent) {
+                return false;
+            }
+
             path = path.replace(/^src\//, '');
             return path;
+        },
+
+        /**
+         * The mini program app base class definition
+         *
+         * @type {?Object}
+         */
+        appBaseClass: {
+            app: 'App',
+            component: 'Component',
+            page: 'Page'
         }
     },
 
@@ -158,6 +250,21 @@ module.exports = {
      * @type {Object}
      */
     component: {
+
+        /**
+         * 要自动注入的全局组件定义，可选
+         * 定义结构：
+         * {
+         *     // key 为要引入的组件名，同组件定义的 `components` 属性定义
+         *     // value 为对应的组件定义的路径，相对于项目的源目录，必须 `.` 开头
+         *     // 如果是 npm 模块，则为对应的 npm 模块引用模块 id，同脚本 import 规则
+         *     MyButton: './components/MyButton',
+         *     Button: 'npm_package/dist/Button'
+         * }
+         *
+         * @type {Object}
+         */
+        global: null,
 
         /**
          * 组件的后缀名
@@ -172,21 +279,63 @@ module.exports = {
          * @type {Object}
          */
         template: {
+
+            /**
+             * vue v- 前缀支持
+             *
+             * @type {Boolean}
+             */
+            useVuePrefix: false,
+
+            /**
+             * 组件 v-model 配置项
+             *
+             * @type {Object}
+             *
+             * 不同平台已内置相应的表单元素
+             * 以及默认自定义组件值，无特殊场景可以不配置
+             *
+             * 设置 default 可以替换 所有自定义组件默认属性
+             * {
+             *     // 设置所有自定义组件
+             *    'default': {
+             *        // 必填 事件类型
+             *        event: 'change',
+             *        // 必填 对应 props 的属性名
+             *        prop: 'value',
+             *        // 对于event.detail 中的字段值的key
+             *        // 不传表示为 event.detail 本身
+             *        detailProp: 'value'
+             *     },
+             *
+             *    // 配置特定组件的 v-model 对应值
+             *    'sp_component': {
+             *        event: 'spchange',
+             *        prop: 'valuex'
+             *     }
+             *   eg:
+             *       <sp_component v-model="xxx" />
+             * }
+             */
+            modelMap: null,
+
             /**
              * 标签转换支持
-             * key 小程序标签名
-             * value <string|Object|Array>
-             * 单个：可为：string Object：类型
-             *    取值为 string 时，表示 要被转的标签
-             *    取值为 Object 时，Object 的 key 可为：
-             *        tag: 表示需转换的 tag, 一般为 HTML tag，
-             *        class: 表示 class 需额外附加 class
-             *        其他属性: 表示 需替换的属性名
+             *
+             * @type {string|Object}
+             *
+             * `key`: 被转的标签名，类型为：`string`
+             * `value`: 根据情况可配置为：`string|Object|` 类型
+             *    取值为 `string` 时，表示转为的 `tag`
+             *    取值为 `Object` 时，`Object` 的 `key` 可为：
+             *        `tag`: 转为的 `tag`,
+             *        `class`: `class` 需额外附加 `classname`，`classname` 的样式需自行定义；
+             *        其他属性: 需替换的属性名
              *
              * eg:
              *
-             * navigator {
-             *     tag: 'a',
+             * a {
+             *     tag: 'navigator',
              *     class: 'inline',
              *     href: 'url'
              * }
@@ -194,19 +343,22 @@ module.exports = {
              * <a class="home-link" href='xxx'></a>
              * 转为:
              * <navigator class="inline" url='xxx'></navigator>
-             *
-             * 推荐配置：
-             *
-             * transformTags: {
-             *      view: ['div', 'p'],
-             *      navigator: {
-             *          tag: 'a',
-             *          href: 'url'
-             *      },
-             *      image: 'img'
-             * }
              */
-            transformTags: null
+            transformTags: null,
+
+            /**
+             * 定义模板依赖的本地资源信息获取的标签属性信息，
+             * 如果不想获取某个标签依赖资源信息，可以配置为 false
+             *
+             * {
+             *    img: 'src',
+             *    import: true, // 设为 true，默认为 src 属性获取依赖的资源
+             *    include: false // 设为 false，不会分析该标签的依赖资源
+             * }
+             *
+             * @type {?Object}
+             */
+            resourceTags: null
         }
     },
 
@@ -229,7 +381,6 @@ module.exports = {
 
     /**
      * 是否启用原生转换处理，可选，默认 true。
-     * 当前主要用在 swan 原生支持上适配 okam。
      * 也可以传入配置对象：
      * {
      *     js: {
@@ -306,11 +457,11 @@ module.exports = {
              * @return {boolean}
              */
             match(file) {
-                if (file.isStyle && (!file.isEntryStyle && !file.owner)) {
+                if (file.isStyle && file.extname !== 'css' && !file.isEntryStyle && !file.owner) {
                     // 默认不处理非入口样式及单文件组件的样式文件
                     return false;
                 }
-                return !!file.processor || file.isComponentConfig;
+                return !!file.processor;
             },
 
             /* eslint-disable fecs-valid-jsdoc */
@@ -343,10 +494,22 @@ module.exports = {
                  * @return {string|Array.<string>}
                  */
                 function (file) {
-                    return file.isComponentConfig ? 'componentJson' : file.processor;
+                    return file.processor;
                 }
 
             ]
+        },
+        {
+            match(file) {
+                return file.isConfig || file.isProjectConfig;
+            },
+            processors: ['configJson']
+        },
+        {
+            match(file) {
+                return file.isComponentConfig;
+            },
+            processors: ['componentJson']
         }
     ],
 

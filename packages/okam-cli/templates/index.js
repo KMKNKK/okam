@@ -45,19 +45,11 @@ const SCRIPT_EXT_MAP = {
  * @const
  */
 const STYLE_EXT_MAP = {
-    sass: 'scss',
+    scss: 'scss',
     less: 'less',
     stylus: 'styl',
     none: 'css'
 };
-
-/**
- * dev package name
- *
- * @type {String}
- * @const
- */
-const PACKAGE_NAME_CORE = 'okam-core';
 
 /**
  * utils/prompts 中 对应需要加包的项
@@ -65,7 +57,18 @@ const PACKAGE_NAME_CORE = 'okam-core';
  * @type {Array}
  * @const
  */
-const PROMPT_PACKAGE_KEYS = ['template', 'script', 'style', 'redux', 'async', 'server', 'tinyimg', 'lint'];
+const PROMPT_PACKAGE_KEYS = ['template', 'script', 'style', 'redux', 'async', 'tinyimg', 'lint'];
+
+/**
+ * dev package name
+ *
+ * @type {String}
+ * @const
+ */
+const PACKAGE_NAME_CORE = {
+    name: 'okam-core',
+    version: '*'
+};
 
 /**
  * package names map
@@ -74,21 +77,150 @@ const PROMPT_PACKAGE_KEYS = ['template', 'script', 'style', 'redux', 'async', 's
  * @const
  */
 const PACKAGE_NAMES_MAP = {
-    devDepsMust: ['okam-build', 'cross-env', 'postcss', 'postcss-url', 'json5'],
+    devDepsMust: [
+        {
+            name: 'okam-build',
+            fetchLatest: true,
+            version: '*'
+        },
+        {
+            name: 'cross-env',
+            version: '5.2.0'
+        },
+        {
+            name: 'postcss',
+            version: '7.0.6'
+        },
+        {
+            name: 'postcss-url',
+            version: '8.0.0'
+        },
+        {
+            name: 'json5',
+            version: '2.1.0'
+        },
+        {
+            name: 'connect',
+            version: '3.6.6'
+        }
+    ],
     devDeps: {
-        eslint: ['eslint', 'eslint-plugin-babel', 'babel-eslint', 'husky', 'lint-staged'],
-        fecs: ['fecs', 'husky', 'lint-staged'],
-        tinyimg: ['okam-plugin-tinyimg'],
-        server: ['connect'],
-        redux: ['redux'],
-        pug: ['pug'],
-        async: ['regenerator-runtime', 'promise-polyfill'],
-        babel7: ['@babel/core', '@babel/preset-env'],
-        babel: ['babel-core', 'babel-preset-env'],
-        typescript: ['@babel/core', '@babel/preset-typescript'],
-        stylus: ['stylus'],
-        less: ['less'],
-        sass: ['node-sass']
+        eslint: [
+            {
+                name: 'eslint',
+                version: '5.9.0'
+            },
+            {
+                name: 'eslint-plugin-babel',
+                version: '5.3.0'
+            },
+            {
+                name: 'babel-eslint',
+                version: '10.0.1'
+            },
+            {
+                name: 'husky',
+                version: '1.2.0'
+            },
+            {
+                name: 'lint-staged',
+                version: '8.1.0'
+            }
+        ],
+        fecs: [
+            {
+                name: 'fecs',
+                version: '1.6.4'
+            },
+            {
+                name: 'husky',
+                version: '1.2.0'
+            }, {
+                name: 'lint-staged',
+                version: '8.1.0'
+            }
+        ],
+        tinyimg: [
+            {
+                name: 'okam-plugin-tinyimg',
+                fetchLatest: true,
+                version: '0.1.2'
+            }
+        ],
+        redux: [
+            {
+                name: 'redux',
+                version: '4.0.1'
+            }
+        ],
+        pug: [
+            {
+                name: 'pug',
+                version: '2.0.3'
+            }
+        ],
+        async: [
+            {
+                name: 'regenerator-runtime',
+                version: '0.13.1'
+            },
+            {
+                name: 'promise-polyfill',
+                version: '8.1.0'
+            }
+        ],
+        babel7: [
+            {
+                name: '@babel/core',
+                version: '7.1.6'
+            },
+            {
+                name: '@babel/preset-env',
+                version: '7.1.6'
+            }
+        ],
+        babel: [
+            {
+                name: 'babel-core',
+                version: '6.26.3'
+            },
+            {
+                name: 'babel-preset-env',
+                version: '1.7.0'
+            }
+        ],
+        typescript: [
+            {
+                name: '@babel/core',
+                version: '7.1.6'
+            },
+            {
+                name: '@babel/preset-typescript',
+                version: '7.1.0'
+            },
+            {
+                name: '@babel/preset-env',
+                version: '7.1.6'
+            }
+        ],
+        stylus: [
+            {
+                name: 'stylus',
+                version: '0.54.5'
+            }
+        ],
+        less: [
+            {
+                name: 'less',
+                version: '3.8.1'
+            }
+        ],
+        scss: [
+            {
+                name: 'node-sass',
+                version: '4.10.0'
+            }
+        ]
     }
 };
 
@@ -127,6 +259,12 @@ class BaseTemplate {
                 sfcExt
             }
         );
+
+        this.extnameMap = {
+            '.okm': sfcExt,
+            '.js': scriptExt,
+            '.styl': styleExt
+        };
     }
 
     async create() {
@@ -189,26 +327,38 @@ class BaseTemplate {
         console.log('# prepare');
         console.log(`    cd ${this.params.dirName} && npm i`);
         console.log('# start');
-        console.log('    swan:');
+        console.log('    swan: 百度小程序运行命令');
+        console.log('        // 带 watch 开发模式');
         console.log('        npm run dev');
+        console.log('        // 删掉构建产物（不包括项目配置文件）并重新构建且带 watch 开发模式');
         console.log('        npm run dev:clean');
+        console.log('        // 带 watch && 开发 Server 开发模式');
         console.log('        npm run dev:server');
+        console.log('        // 删掉构建重新构建（没有 watch && 开发 Server)');
         console.log('        npm run build');
+        console.log('        // 生产环境构建');
         console.log('        npm run prod');
         console.log('');
-        console.log('    wx:');
+        console.log('    wx: 微信小程序运行命令');
         console.log('        npm run dev:wx');
         console.log('        npm run dev:wx:clean');
         console.log('        npm run dev:wx:server');
         console.log('        npm run build:wx');
         console.log('        npm run prod:wx');
         console.log('');
-        console.log('    ant:');
+        console.log('    ant: 支付宝小程序运行命令');
         console.log('        npm run dev:ant');
         console.log('        npm run dev:ant:clean');
         console.log('        npm run dev:ant:server');
         console.log('        npm run build:ant');
         console.log('        npm run prod:ant');
+        console.log('');
+        console.log('    tt: 头条小程序运行命令');
+        console.log('        npm run dev:tt');
+        console.log('        npm run dev:tt:clean');
+        console.log('        npm run dev:tt:server');
+        console.log('        npm run build:tt');
+        console.log('        npm run prod:tt');
     }
 
     generateDotFilesAll(fullPath) {
@@ -277,7 +427,12 @@ class BaseTemplate {
      * 生成 其他相关文件
      */
     async generateOthers() {
-        let coreVersion = await getLatestVersion(PACKAGE_NAME_CORE);
+        let coreVersion = PACKAGE_NAME_CORE.version;
+        try {
+            coreVersion = await getLatestVersion(PACKAGE_NAME_CORE.name);
+        }
+        catch (e) {
+        }
         let devDepsInfo = await this.getPackagesDevDepsNameAndVersion();
 
         this.creater.etplEngine.renderTplToFile(
@@ -287,7 +442,7 @@ class BaseTemplate {
                 {},
                 this.params,
                 {
-                    coreVersion,
+                    coreVersion: coreVersion === '*' ? coreVersion : `^${coreVersion}`,
                     devDeps: devDepsInfo
                 }
             )
@@ -310,24 +465,33 @@ class BaseTemplate {
      * @return {[Object]} []
      */
     async getPackagesDevDepsNameAndVersion() {
-        let pkgNames = [];
+        let pkgsInfo = [];
 
-        Array.prototype.push.apply(pkgNames, PACKAGE_NAMES_MAP.devDepsMust);
+        Array.prototype.push.apply(pkgsInfo, PACKAGE_NAMES_MAP.devDepsMust);
 
         PROMPT_PACKAGE_KEYS.forEach(key => {
             let name = typeof this.params[key] === 'boolean'
-                ? key
+                ? (this.params[key] ? key : '')
                 : this.params[key];
-            PACKAGE_NAMES_MAP.devDeps[name] && Array.prototype.push.apply(
-                pkgNames,
-                PACKAGE_NAMES_MAP.devDeps[name]
-            );
+            if (name && PACKAGE_NAMES_MAP.devDeps[name]) {
+                Array.prototype.push.apply(
+                    pkgsInfo,
+                    PACKAGE_NAMES_MAP.devDeps[name]
+                );
+            }
         });
-        let devDeps = await Promise.all(pkgNames.map(async name => {
-            let version = await getLatestVersion(name);
+        let devDeps = await Promise.all(pkgsInfo.map(async pkg => {
+            let version = pkg.version;
+            if (pkg.fetchLatest) {
+                try {
+                    version = await getLatestVersion(pkg.name);
+                }
+                catch (e) {
+                }
+            }
             let info = {
-                name,
-                version: `${version}`
+                name: pkg.name,
+                version: version === '*' ? version : `^${version}`
             };
             return info;
         }));
@@ -352,15 +516,9 @@ class BaseTemplate {
             fs.copy(fullPath, projectFilePath);
             return;
         }
-
-        if (extname === '.okm') {
-            projectFilePath = projectFilePath.replace(extname, '.' + this.params.sfcExt);
-        }
-        if (extname === '.js') {
-            projectFilePath = projectFilePath.replace(extname, '.' + this.params.scriptExt);
-        }
-        if (extname === '.styl') {
-            projectFilePath = projectFilePath.replace(extname, '.' + this.params.styleExt);
+        // 后缀替换
+        if (this.extnameMap[extname]) {
+            projectFilePath = projectFilePath.replace(extname, `.${this.extnameMap[extname]}`);
         }
 
         this.creater.etplEngine.renderTplToFile(

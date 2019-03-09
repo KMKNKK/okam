@@ -92,8 +92,8 @@ let promptList = [
                 'value': 'less'
             },
             {
-                'name': 'sass',
-                'value': 'sass'
+                'name': 'scss/sass',
+                'value': 'scss'
             },
             {
                 'name': 'css',
@@ -117,16 +117,6 @@ let promptList = [
         'type': 'confirm',
         'name': 'async',
         'message': 'Use Promise, Async/Await in your project?'
-    },
-    {
-        'type': 'confirm',
-        'name': 'h5tag',
-        'message': 'Use html tag in your project?'
-    },
-    {
-        'type': 'confirm',
-        'name': 'server',
-        'message': 'Use Mock server in your project?'
     },
     {
         'type': 'confirm',
@@ -159,7 +149,15 @@ let promptList = [
     }
 ];
 
+let promptUpdateCli = {
+    'type': 'confirm',
+    'name': 'cli',
+    'default': true,
+    'message': 'update okam-cli now ?'
+};
+
 module.exports = {
+    promptUpdateCli,
     promptList,
     setPromptsValue
 };

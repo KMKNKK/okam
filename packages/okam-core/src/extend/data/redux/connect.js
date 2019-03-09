@@ -7,6 +7,8 @@
 
 /* eslint-disable fecs-prefer-destructure */
 
+import isValueEqual from '../equal';
+
 function normalizeStoreComputed(stateMap) {
     let computed;
     if (Array.isArray(stateMap)) {
@@ -84,14 +86,19 @@ function normalizeStoreActions(actionMap) {
     return toAction;
 }
 
+function shouldUpdate(old, curr) {
+    return !isValueEqual(old, curr);
+}
+
 function onStoreChange() {
-    let observer = this.__computedObserver;
     let upKeys = this.__storeComputedKeys;
+    let updateComputed = this.__updateComputed;
     if (typeof upKeys === 'function') {
         this.__storeComputedKeys = upKeys = upKeys();
     }
-    if (observer && upKeys) {
-        upKeys.forEach(k => observer.updateComputed(k));
+
+    if (updateComputed && upKeys) {
+        upKeys.forEach(k => updateComputed.call(this, k, shouldUpdate));
     }
 }
 

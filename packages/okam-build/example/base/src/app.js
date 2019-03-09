@@ -6,27 +6,36 @@
 'use strict';
 
 import store from './store/index';
+// import a from 'a';
 
 export default {
     // the app config defined in app.json
     config: {
-        pages: [ // The first element as the home page when app startup
+        // The first element as the home page when app startup
+        pages: [
             'pages/home/index',
+            'pages/tpl/vueSyntax',
             'pages/tpl/tplSyntax',
             'pages/tpl/tplReuse',
             'pages/tpl/tplPug',
             'pages/tpl/ref',
             'pages/typescript/ts',
             'pages/component/componentPage',
+            'pages/component/canvas',
             'pages/lifecycle/index',
             'pages/data/computed',
             'pages/data/init',
             'pages/data/array',
             'pages/data/watch',
+            'pages/data/model',
+            'pages/data/vhtml',
             'pages/todos/todoList',
             'pages/todos/counter',
             'pages/behavior/index',
-            'pages/broadcast/index'
+            'pages/broadcast/index',
+            'pages/filter/index',
+            'pages/sfc/index',
+            'pages/sfc/separate'
         ],
         subPackages: [
             {
@@ -51,19 +60,36 @@ export default {
 
         networkTimeout: {
             request: 30000
+        },
+
+        _quickEnv: {
+            networkTimeout: null,
+            package: 'com.okam.demo',
+            name: 'okam-quick',
+            versionCode: '1',
+            icon: '/common/img/logo.png'
         }
     },
 
     $store: store,
+
+    globalData: {
+        config: {}
+    },
 
     // apis which need promisify
     $promisifyApis: ['getSystemInfo', 'request'],
 
     $interceptApis: {
         request: {
-            init(options, ctx) {
+            async init(options, ctx) {
                 console.log('init options', options, ctx);
-                return options;
+                let result = await new Promise((resolve, reject) => {
+                    setTimeout(() => {
+                        resolve({abc: 6, s: true});
+                    });
+                });
+                options.data = result;
             },
             done(err, res, ctx) {
                 console.log('done...', err, res, ctx);

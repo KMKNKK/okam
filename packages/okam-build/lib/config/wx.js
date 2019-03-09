@@ -32,17 +32,38 @@ module.exports = merge({}, baseConf, {
             script: 'js',
             style: 'wxss',
             tpl: 'wxml',
-            config: 'json'
+            config: 'json',
+            filter: 'wxs'
         }
     },
 
+    resolve: {
+        ignore: /^plugin:\/\//
+    },
+
     processors: {
-        cssImport: {
-            processor: 'postcss', // using the existed postcss processor
-            extnames: ['wxss'],
-            rext: 'wxss',
+        postcss: {
+            extnames: ['wxss', 'css']
+        },
+        filter: {
+            extnames: ['wxs'],
+            rext: 'wxs',
             options: {
-                plugins: ['cssImport']
+                plugins: ['dep']
+            }
+        },
+        nativeView: {
+            processor: 'view',
+            extnames: ['wxml'],
+            options: {
+                keepOriginalContent: true,
+                plugins: [['resource', {
+                    tags: {
+                        'import': true,
+                        'include': true,
+                        'wxs': true
+                    }
+                }]]
             }
         }
     }

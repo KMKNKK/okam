@@ -11,10 +11,10 @@ const fs = require('fs');
 const path = require('path');
 const mkdirp = require('mkdirp');
 const createFile = require('../processor/FileFactory').createFile;
-const fileUtil = require('../util').file;
+const {replaceFileName, replaceExtname, isFileExists} = require('../util').file;
 
 function outputFile(file, targetPath, logger) {
-    if (file.isProjectConfig && fileUtil.isFileExists(targetPath)) {
+    if (file.isProjectConfig && isFileExists(targetPath)) {
         logger.debug('ignore project config file output');
         return;
     }
@@ -33,37 +33,44 @@ function outputFile(file, targetPath, logger) {
     });
 }
 
+function updateFileName(filePath, newFileName) {
+    if (!newFileName) {
+        return false;
+    }
+
+    return replaceFileName(filePath, newFileName);
+}
+
 function getOutputPath(filePath, file, options) {
-    let {componentPartExtname, outputPathMap = {}, getCustomPath: getPath} = options;
+    let {
+        componentPartExtname,
+        outputPathMap = {},
+        getCustomPath: getPath
+    } = options;
 
     let result;
     if (file.isProjectConfig) {
-        result = outputPathMap.projectConfig;
+        result = updateFileName(filePath, outputPathMap.projectConfig);
     }
     else if (file.isEntryScript) {
-        result = outputPathMap.entryScript;
+        result = updateFileName(filePath, outputPathMap.entryScript);
     }
     else if (file.isEntryStyle) {
-        result = outputPathMap.entryStyle;
+        result = updateFileName(filePath, outputPathMap.entryStyle);
     }
     else if (file.isAppConfig) {
-        result = outputPathMap.appConfig;
+        result = updateFileName(filePath, outputPathMap.appConfig);
     }
     else {
-        if (file.isNpm) {
-            result = file.resolvePath || filePath;
-        }
-        else {
-            result = filePath;
-        }
+        result = file.resolvePath || filePath;
 
-        if (file.isTpl && !file.rext) {
+        if (file.isTpl && !file.rext && componentPartExtname) {
             file.rext = componentPartExtname.tpl;
         }
 
         let rext = file.rext;
         if (rext) {
-            result = result.replace(/\.\w+$/, '.' + rext);
+            result = replaceExtname(result, rext);
         }
     }
 
@@ -78,10 +85,19 @@ function getOutputPath(filePath, file, options) {
     return result || filePath;
 }
 
-function getComponentOutputFilePath(partFile, owner, options) {
+function getComponentPartOutputFilePath(partFile, owner, options) {
     let {componentPartExtname} = options;
+    if (!componentPartExtname) {
+        return;
+    }
+
+    let filePath = owner.resolvePath || owner.path;
     if (partFile.isJson) {
         partFile.rext = componentPartExtname.config;
+    }
+    else if (partFile.isFilter) {
+        partFile.rext = '';
+        filePath = partFile.path;
     }
     else if (partFile.isScript) {
         partFile.rext = componentPartExtname.script;
@@ -93,12 +109,7 @@ function getComponentOutputFilePath(partFile, owner, options) {
         partFile.rext = componentPartExtname.tpl;
     }
 
-    let outputPath = getOutputPath(owner.path, partFile, options);
-    if (!outputPath) {
-        return;
-    }
-
-    return outputPath;
+    return getOutputPath(filePath, partFile, options);
 }
 
 function mergeComponentStyleFiles(styleFiles, rootDir) {
@@ -107,8 +118,9 @@ function mergeComponentStyleFiles(styleFiles, rootDir) {
         return;
     }
 
+    let styleFileItem = styleFiles[0];
     if (styleFiles.length === 1) {
-        return styleFiles[0];
+        return styleFileItem;
     }
 
     let content = [];
@@ -116,16 +128,23 @@ function mergeComponentStyleFiles(styleFiles, rootDir) {
         content.push(item.content);
     });
 
-    return createFile({
+    let mergeFile = createFile({
         fullPath: styleFiles[0].fullPath,
         isVirtual: true,
         isStyle: true,
         data: content.join('\n')
     }, rootDir);
+
+    mergeFile.resolvePath = styleFileItem.resolvePath;
+    mergeFile.owner = styleFileItem.owner;
+    mergeFile.allowRelease = true;
+    mergeFile.compiled = true;
+
+    return mergeFile;
 }
 
 function isComponentFile(f) {
-    return f && (f.isPageComponent || f.isComponent);
+    return f && (f.isComponent || f.isNativeComponent);
 }
 
 function addFileOutputTask(allTasks, options, file) {
@@ -133,17 +152,14 @@ function addFileOutputTask(allTasks, options, file) {
         return;
     }
 
-    let {outputDir} = options;
+    let {outputDir, logger} = options;
     let ownerFile = file.owner;
     let outputRelPath = isComponentFile(ownerFile)
-        ? getComponentOutputFilePath(file, ownerFile, options)
+        ? getComponentPartOutputFilePath(file, ownerFile, options)
         : getOutputPath(file.path, file, options);
     if (!outputRelPath) {
+        logger.debug('skip file release', file.path);
         return;
-    }
-
-    if (!file.compiled) {
-        this.logger.debug('file is not compiled:', file.path);
     }
 
     allTasks.push(
@@ -161,8 +177,6 @@ class FileOutput {
             file: getCustomPath
         } = options || {};
 
-        mkdirp.sync(outputDir);
-
         this.buildManager = buildManager;
         this.root = root;
         this.logger = logger;
@@ -175,10 +189,10 @@ class FileOutput {
             logger
         };
 
-        this.initAsynTaskOutput(buildManager, this.outputOpts);
+        this.initAsyncTaskOutput(buildManager, this.outputOpts);
     }
 
-    initAsynTaskOutput(buildManager, outputOpts) {
+    initAsyncTaskOutput(buildManager, outputOpts) {
         let {logger, outputDir} = outputOpts;
         buildManager.on('asyncDone', file => {
             let outputRelPath = getOutputPath(file.path, file, outputOpts);
@@ -196,7 +210,7 @@ class FileOutput {
         });
     }
 
-    initFileOutputTask(f, taskInititer) {
+    initFileOutputTask(f, initTask) {
         if (isComponentFile(f)) {
             let styleFileArr = [];
             f.subFiles && f.subFiles.forEach(subFile => {
@@ -204,20 +218,21 @@ class FileOutput {
                     styleFileArr.push(subFile);
                 }
                 else {
-                    taskInititer(subFile);
+                    initTask(subFile);
                 }
             });
 
             let styleFile = mergeComponentStyleFiles(styleFileArr, this.root);
             if (styleFile) {
-                taskInititer(styleFile);
+                initTask(styleFile);
             }
+            initTask(f);
         }
         else {
             f.subFiles && f.subFiles.forEach(
-                subFile => taskInititer(subFile)
+                subFile => initTask(subFile)
             );
-            taskInititer(f);
+            initTask(f);
         }
     }
 
@@ -239,6 +254,16 @@ class FileOutput {
             null,
             err => this.logger.error('build fail:', err.stack || err.toString())
         );
+    }
+
+    /**
+     * Get the file output path
+     *
+     * @param {Object} file the file to get output file path
+     * @return {string}
+     */
+    getOutputPath(file) {
+        return getOutputPath.call(this, file.path, file, this.outputOpts);
     }
 }
 

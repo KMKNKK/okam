@@ -165,8 +165,9 @@ function getBuiltinProcessor(file, processorInfo, buildManager) {
         }
     }
 
-    if (!result._resovled && result.deps && result.deps.length) {
-        result._resovled = true;
+    let referProcessorName = result.refer;
+    if (!result._resolved && result.deps && result.deps.length) {
+        result._resolved = true;
         try {
             customRequire.ensure(processorName, result.deps, root);
         }
@@ -182,15 +183,18 @@ function getBuiltinProcessor(file, processorInfo, buildManager) {
         processorOpts = merge({}, defaultOpts, processorOpts);
     }
 
+    let isNativeViewProcessor = processorName === 'nativeView';
+
     // init babel transform extra options
-    if (hasBabelProcessor(processorName)) {
+    let isUsingBabelProcessor = hasBabelProcessor(referProcessorName || processorName);
+    if (isUsingBabelProcessor) {
         processorOpts = initBabelProcessorOptions(
             file, processorOpts, buildManager
         );
     }
-    else if (processorName === 'view') {
+    else if (processorName === 'view' || isNativeViewProcessor) {
         processorOpts = initViewProcessorOptions(
-            processorOpts, buildManager
+            file, processorOpts, buildManager, isNativeViewProcessor
         );
     }
 

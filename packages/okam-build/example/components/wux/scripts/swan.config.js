@@ -7,7 +7,6 @@
 
 const path = require('path');
 
-
 module.exports = {
     verbose: false,
     root: path.join(__dirname, '..'),
@@ -19,6 +18,11 @@ module.exports = {
     component: {
         extname: 'vue'
     },
-    framework: [],
+    framework: [
+        'data',
+        'watch',
+        'broadcast',
+        'ref'
+    ],
     polyfill: []
 };

@@ -33,17 +33,27 @@ module.exports = merge({}, baseConf, {
             script: 'js',
             style: 'css',
             tpl: 'swan',
-            config: 'json'
+            config: 'json',
+            filter: 'filter.js'
         }
     },
 
     processors: {
-        cssImport: {
-            processor: 'postcss', // using the existed postcss processor
-            extnames: ['css'],
-            rext: 'css',
+        postcss: {
+            extnames: ['css']
+        },
+        nativeView: {
+            processor: 'view',
+            extnames: ['swan'],
             options: {
-                plugins: ['cssImport']
+                keepOriginalContent: true,
+                plugins: [['resource', {
+                    tags: {
+                        'import': true,
+                        'include': true,
+                        'filter': true
+                    }
+                }]]
             }
         }
     }

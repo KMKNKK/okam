@@ -1,8 +1,8 @@
 {
   "name": "okam-core",
-  "version": "0.3.3",
+  "version": "0.4.14",
   "description": "The extension for small program framework",
-  "main": "index.js",
+  "main": "src/index.js",
   "keywords": [
     "swan",
     "wx",
@@ -13,9 +13,9 @@
   "scripts": {
     "prepublish": "npm run lint && npm test",
     "lint": "fecs ./src index.js --reporter=baidu --rule",
-    "test:coverage": "cross-env NODE_ENV=development nyc mocha --require babel-register \"test/tasks/**/*.spec.js\"",
-    "test": "cross-env NODE_ENV=development mocha --require @babel/register \"test/tasks/**/*.spec.js\"",
-    "test:debug": "cross-env NODE_ENV=development mocha --inspect-brk --require @babel/register \"test/tasks/**/*.spec.js\""
+    "test:coverage": "cross-env NODE_ENV=development nyc mocha --require @babel/register --require ./test/prepare.js \"test/tasks/**/*.spec.js\"",
+    "test": "cross-env NODE_ENV=development mocha --require @babel/register --require ./test/prepare.js \"test/tasks/**/*.spec.js\"",
+    "test:debug": "cross-env NODE_ENV=development mocha --inspect-brk --require @babel/register --require ./test/prepare.js \"test/tasks/**/*.spec.js\""
   },
   "license": "MIT",
   "repository": "ecomfe/okam",
@@ -28,6 +28,7 @@
     "nyc": "^13.0.1",
     "promise-polyfill": "^8.0.0",
     "redux": "^4.0.1",
-    "regenerator-runtime": "^0.12.1"
+    "regenerator-runtime": "^0.12.1",
+    "vuex": "^3.1.0"
   }
 }

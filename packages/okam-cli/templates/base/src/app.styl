@@ -3,40 +3,46 @@
  * @author ${author|raw}
  */
 
-<% if: ${style} === 'stylus' %>
-
 <% var: size = ${px2rpx} ? 150 : 50 %>
+<% if: ${style} === 'stylus' %>
+@import './common/css/common'
 
-<% if: ${h5tag} %>
-.okam-inline
-    display: inline
-<% /if %>
 .page-img
     margin: 0 auto
+    -quick-margin: 0 44%;
     display: block
     width: ${size}px
     height: ${size}px
+
 .page-footer
     position: absolute
     bottom: 80px
     width: 100%
     text-align: center
+    -quick-justify-content: center
+    -quick-align-items: center
 <% else %>
-<% if: ${h5tag} %>
-.okam-inline {
-    display: inline;
-}
+
+<% if: ${style} === 'css' %>
+@import './common/css/common.css';
+<% else %>
+@import './common/css/common';
 <% /if %>
+
 .page-img {
     margin: 0 auto;
+    -quick-margin: 0 44%;
     display: block;
     width: ${size}px;
     height: ${size}px;
 }
+
 .page-footer {
     position: absolute;
     bottom: 80px;
     width: 100%;
     text-align: center;
+    -quick-justify-content: center;
+    -quick-align-items: center;
 }
 <% /if %>

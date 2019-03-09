@@ -1,18 +1,16 @@
 /**
- * @file Array data update proxy
+ * @file Array proxy apis
  * @author sparklewhy@gmail.com
  */
 
 'use strict';
-
-const hasProto = '__proto__' in {};
 
 /**
  * The default override Array APIs to proxy array data update
  *
  * @type {Object}
  */
-export const observableArray = {
+export default {
     push(observer, rawPush, ...items) {
         let rawData = observer.rawData;
         let idx = rawData.length;
@@ -58,12 +56,20 @@ export const observableArray = {
 
     splice(observer, rawSplice, ...args) {
         let rawData = observer.rawData;
-        rawSplice.apply(rawData, args);
 
-        let result = rawSplice.apply(this, args);
-        observer.set(null, rawData);
+        if (args.length === 3 && args[1] === 1) {
+            // splice(idx, 1, newValue) is the same as arr[idx] = newValue
+            let delIdx = args[0];
+            let lastIdx = rawData.length - 1;
+            let upIdx = delIdx > lastIdx ? (lastIdx + 1) : delIdx;
+            observer.set(upIdx, args[2], true);
+        }
+        else {
+            rawSplice.apply(rawData, args);
+            observer.set(null, rawData);
+        }
 
-        return result;
+        return rawSplice.apply(this, args);
     },
 
     sort(observer, rawSort, ...args) {
@@ -86,89 +92,3 @@ export const observableArray = {
         return result;
     }
 };
-
-/**
- * The Page Array APIs to override
- *
- * @inner
- * @type {Object}
- */
-let overridePageArrApis = observableArray;
-
-/**
- * The component Array APIs to override
- *
- * @inner
- * @type {Object}
- */
-let overrideComponentArrApis = observableArray;
-
-/**
- * Extend the array operation methods
- *
- * @param {Object} arrApis the array methods to override
- * @param {boolean} isPage whether is page Array APIs to override
- */
-export function overrideArrayMethods(arrApis, isPage) {
-    if (isPage) {
-        overridePageArrApis = arrApis;
-    }
-    else {
-        overrideComponentArrApis = arrApis;
-    }
-}
-
-/**
- * Update array item value
- *
- * @param {Observer} observer the observer
- * @param {number} idx the index to update
- * @param {*} value the value to set
- */
-function updateArrayItem(observer, idx, value) {
-    observer.set(idx, value);
-    this[idx] = value;
-}
-
-/**
- * Get the array item value
- *
- * @param {Observer} observer the observer
- * @param {number} idx the index to get
- * @return {*}
- */
-function getArrayItem(observer, idx) {
-    return observer.get(idx);
-}
-
-/**
- * Make array observable
- *
- * @param {Array} arr the array to observe
- * @param {Observer} observer the observer
- * @param {boolean} isPage whether is page Array APIs to override
- * @return {Array}
- */
-export default function makeArrayObservable(arr, observer, isPage) {
-    let arrayMethods;
-    /* istanbul ignore next */
-    if (hasProto) {
-        arrayMethods = Object.create(Array.prototype);
-        /* eslint-disable no-proto */
-        arr.__proto__ = arrayMethods;
-    }
-    else {
-        arrayMethods = arr;
-    }
-
-    let overrideArrApis = isPage ? overridePageArrApis : overrideComponentArrApis;
-    Object.keys(overrideArrApis).forEach(method => {
-        let rawMethod = arrayMethods[method];
-        arrayMethods[method] = overrideArrApis[method].bind(arr, observer, rawMethod);
-    });
-
-    arrayMethods.setItem = updateArrayItem.bind(arr, observer);
-    arrayMethods.getItem = getArrayItem.bind(arr, observer);
-
-    return arr;
-}

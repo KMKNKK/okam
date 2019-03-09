@@ -10,10 +10,10 @@
 
 import assert from 'assert';
 import expect, {createSpy, spyOn} from 'expect';
-import MyApp from 'core/App';
-import MyPage from 'core/Page';
+import MyApp from 'core/swan/App';
+import MyPage from 'core/swan/Page';
 import {clearBaseCache} from 'core/helper/factory';
-import {setObservableContext} from 'core/extend/data/observable';
+import {setObservableContext} from 'core/extend/data/observable/base';
 import observable from 'core/extend/data/observable/wx';
 import {fakeComponent, fakeAppEnvAPIs} from 'test/helper';
 
@@ -676,7 +676,7 @@ describe('observable', function () {
         instance.setData = spySetData;
 
         instance.created();
-        instance.$notifySetDataDone();
+        instance.__notifySetDataDone();
         expect(spyUpdated).toNotHaveBeenCalled();
     });
 
@@ -844,12 +844,12 @@ describe('observable', function () {
         instance.setData = spySetData;
 
         instance.created();
-        instance.$waitingDataUpQueues = null;
+        instance.__upDoneCallbackQueue = null;
 
         let spyFunc1 = createSpy(() => {});
         instance.$nextTick(spyFunc1);
 
-        instance.$waitingDataUpQueues = [];
+        instance.__upDoneCallbackQueue = [];
         instance.a = 6;
 
         let spyFunc2 = createSpy(() => {});
@@ -953,7 +953,7 @@ describe('observable', function () {
             assert(spySetData.calls.length === 1);
             let args = spySetData.calls[0].arguments;
             expect(args.slice(0, args.length - 1)).toEqual([
-                {d: {b: 3}, 'a.b': 56, 'd.b': 56}
+                {d: {b: 56}, 'a.b': 56, 'd.b': 56}
             ]);
 
             done();
